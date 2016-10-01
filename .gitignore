@@ -1,2 +1,6 @@
+*.pyc
+/app/*
 .DS_Store
 .flake8
+tests.py
+fruits.py

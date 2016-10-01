@@ -9,7 +9,7 @@ Initialize the library:
 import paper
 
 # Initialize Paper
-app = Paper('./app')
+app = paper.app('./app')
 
 # Expose the function 'hello' to the JS API
 @app.expose
@@ -28,6 +28,7 @@ Make your app (inside “app” folder):
     <title>Paper</title>
 
     <!-- Paper API -->
+    <script src="./jquery.min.js"></script>
     <script src=“./paper.js”></script>
 </head>
 <body>
@@ -39,6 +40,7 @@ Make your app (inside “app” folder):
         response = paper.py.hello();
         alert(response);
     }
+    </script>
 </body>
 </html>
 ```
