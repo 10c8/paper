@@ -3,33 +3,64 @@
  * Bridge between Python and JavaScript
  *
  * author 0x77
- * version 0.1
+ * version 0.2
 */
 
 // Utils
 function _callPython(call) {
-    result = JSON.parse($.ajax({
+    result = $.ajax({
         url: '/api',
         type: 'post',
         dataType: 'json',
         contentType: 'application/json',
         data: JSON.stringify(call),
         async: false
-    }).responseText);
+    }).responseText;
 
-    return JSON.parse(result.result);
+    return JSON.parse(result);
 }
 
-function PyObj(type, data) {
-    this.type = type;
-    this.data = data;
+function PyCall(owner, name) {
+    var call = function(args) {
+        result = _callPython({
+            'call': name,
+            'owner': owner,
+            'args': args
+        });
+
+        if ('error' in result) {
+            console.error(result.error);
+            return null;
+        }
+
+        if (result.type == 'object')
+            return new PyObj(result.value);
+        else
+            return result.value;
+    };
+
+    return kwargs(call);
 }
-PyObj.prototype.toString = function() {
-    return JSON.stringify(this.data);
-};
-PyObj.prototype.inspect = function() {
-    return '<PyObj '+ this.type +'>';
-};
+
+function PyObj(data) {
+    object = {};
+
+    for(var name in data) {
+        if (name == '__id__' || name == '__name__') {
+            object[name] = data[name];
+            continue;
+        }
+
+        item = data[name];
+
+        if (item.type == 'function')
+            object[name] = PyCall(data.__id__, item.name);
+        else
+            object[name] = item.value;
+    }
+
+    return object;
+}
 
 function PyType(type, data) {
     if (!(Paper.valid.indexOf(type) > -1)) {
@@ -69,6 +100,18 @@ var Paper = {
 };
 
 /*
+Import a Python module as a PyObj
+*/
+Paper.import = function(name) {
+    result = _callPython({
+        builtin: 'import',
+        module: name
+    });
+
+    window[name] = new PyObj(result);
+};
+
+/*
 Create a Python tuple
 */
 Paper._tuple = function(kwargs) {
@@ -81,19 +124,6 @@ Paper._tuple = function(kwargs) {
     return _;
 };
 Paper.Tuple = kwargs(Paper._tuple);
-
-/*
-Import a Python module as a PyObj
-*/
-Paper.import = function(name) {
-    result = _callPython({
-        builtin: 'import',
-        module: name
-    });
-
-    obj = new PyObj('module', result);
-    window[name] = obj.data;
-};
 
 // Why not?
 var paper = Paper;

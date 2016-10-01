@@ -4,7 +4,7 @@
  # Develop apps for Pythonista using HTML, CSS and JavaScript
  #
  # author 0x77
- # version 0.1
+ # version 0.2
 ##
 
 # Imports
@@ -31,9 +31,16 @@ class PaperApp(object):
     Where all the magic happens
     '''
 
+    # Application root directory
     _root = None
+    # Functions exposed to the JS API
     _exposed = {}
-    _ignored_imports = ['__name__', '__doc__', '__file__', '__package__', '__builtins__']
+    # Names ignored on imports
+    _ignored_imports = [
+        '__name__', '__doc__', '__file__', '__package__', '__builtins__'
+    ]
+    # Objects created by JavaScript
+    _py_objects = {}
 
     def __init__(self, root):
         self._root = root
@@ -75,7 +82,7 @@ class PaperApp(object):
         @post('/api')
         def api():
             is_builtin = ('builtin' in request.json)
-            is_call    = ('call' in request.json)
+            is_call = ('call' in request.json)
 
             if is_builtin:
                 if request.json['builtin'] == 'import':
@@ -100,23 +107,95 @@ class PaperApp(object):
                                 'type': 'str',
                                 'value': value
                             }
+                        elif type(value) == int:
+                            result[name] = {
+                                'type': 'int',
+                                'value': value
+                            }
+                        elif type(value) == float:
+                            result[name] = {
+                                'type': 'float',
+                                'value': value
+                            }
                         elif callable(value):
                             result[name] = {
                                 'type': 'function',
                                 'name': name
                             }
 
+                    # Save the newly created object
+                    obj_name = id(mod)
+                    self._py_objects[obj_name] = mod
+
+                    result['__id__'] = obj_name
+
+                    # Return a reference to that object
                     data = json.dumps(result)
             elif is_call:
                 call = request.json['call']
+                owner = request.json['owner']
+                args = request.json['args']
 
-                print('Calling {}.'.format(call))
+                try:
+                    result = getattr(self._py_objects[owner], call)(*args)
 
-                data = {}
+                    if type(result) == str:
+                        data = {
+                            'type': 'str',
+                            'value': result
+                        }
+                    elif type(result) == int:
+                        data = {
+                            'type': 'int',
+                            'value': result
+                        }
+                    elif type(result) == float:
+                        data = {
+                            'type': 'float',
+                            'value': result
+                        }
+                    else:
+                        data = {
+                            'type': 'object',
+                            'value': {}
+                        }
 
-            return {
-                'result': data
-            }
+                        # Save the newly created object
+                        obj_name = id(result)
+                        self._py_objects[obj_name] = result
+
+                        data['value']['__id__'] = obj_name
+
+                        for name in dir(result):
+                            if name.startswith('__'):
+                                continue
+
+                            value = getattr(result, name)
+
+                            if type(value) == str:
+                                data['value'][name] = {
+                                    'type': 'str',
+                                    'value': value
+                                }
+                            elif type(value) == int:
+                                data['value'][name] = {
+                                    'type': 'int',
+                                    'value': value
+                                }
+                            elif type(value) == float:
+                                data['value'][name] = {
+                                    'type': 'float',
+                                    'value': value
+                                }
+                            elif callable(value):
+                                data['value'][name] = {
+                                    'type': 'function',
+                                    'name': name
+                                }
+                except:
+                    data = {'error': str(sys.exc_info()[0])}
+
+            return data
 
         # Start the server
         run(host='127.0.0.1', port=1406, quiet=True)
