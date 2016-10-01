@@ -8,4 +8,4 @@
 
 var Paper = paper = {
     "VERSION": "0.1"
-}
+};
