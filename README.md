@@ -5,39 +5,43 @@ Paper is a library that allows Pythonista users to develop aplications using HTM
 
 # How can I use it?
 Initialize the library:
-	import paper
+```python
+import paper
 
-	# Initialize Paper
-	app = Paper('./app')
+# Initialize Paper
+app = Paper('./app')
 
-	# Expose the function 'hello' to the JS API
-	@app.expose
-	def hello():
-	    return 'Oh, hi!'
+# Expose the function 'hello' to the JS API
+@app.expose
+def hello():
+    return 'Oh, hi!'
 
-	# Run your app
-	app.run()
+# Run your app
+app.run()
+```
 
 Make your app (inside “app” folder):
-	<!DOCTYPE html>
-	<html>
-	<head>
-	    <title>Paper</title>
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Paper</title>
 
-	    <!-- Paper API -->
-	    <script src=“./paper.js”></script>
-	</head>
-	<body>
-	    <h1>Hello, Paper!</h1>
-	    <button onclick=“sayHello()”>Hello!</button>
+    <!-- Paper API -->
+    <script src=“./paper.js”></script>
+</head>
+<body>
+    <h1>Hello, Paper!</h1>
+    <button onclick=“sayHello()”>Hello!</button>
 
-	    <script>
-	    function sayHello() {
-	        response = paper.py.hello();
-	        alert(response);
-	    }
-	</body>
-	</html>
+    <script>
+    function sayHello() {
+        response = paper.py.hello();
+        alert(response);
+    }
+</body>
+</html>
+```
 
 _Voilá._
 
