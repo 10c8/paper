@@ -11,6 +11,7 @@
 import os
 import sys
 import json
+import traceback
 import webbrowser
 
 from bottle import run, route, get, post, static_file, request
@@ -193,7 +194,14 @@ class PaperApp(object):
                                     'name': name
                                 }
                 except:
-                    data = {'error': str(sys.exc_info()[0])}
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+
+                    tb = traceback.format_exc(exc_traceback).split('Error: ')[1]
+
+                    data = {
+                        'exception': str(exc_type),
+                        'traceback': 'Traceback: {}'.format(tb)
+                    }
 
             return data
 

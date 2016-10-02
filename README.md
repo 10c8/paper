@@ -4,19 +4,32 @@
 Paper is a library that allows Pythonista users to develop aplications using HTML, CSS and JavaScript.
 
 # Todo
+Important:
+- [ ] Return exceptions to JavaScript instead of crashing the server.
+- [ ] Implement garbage collection for Python objects and references.
+- [ ] Improve performance when working with heavy data.
+
 Modules:
 - [x] Import Python modules from JavaScript.
 - [ ] `import x.y`
+
+Functions:
+- [ ] Convert Python builtin functions to JavaScript functions.
+- [ ] Convert a JavaScript function to a Python function.
+    - [ ] Pass those functions as arguments to Python function calls.
 
 Types:
 - [x] Convert basic Python types to JavaScript equivalents (`int`, `float`, `string`, `list`, `dict` and `tuple`).
 - [x] Convert basic JavaScript types to Python equivalents (`int`, `float`, `string` `array` and `object`.
 - [x] Create JavaScript objects from Python objects.
 - [ ] Create Python objects from JavaScript objects.
-- [ ] Pass Python objects created from JavaScript as arguments to Python function calls.
+    - [ ] Pass those objects as arguments to Python function calls.
 
 Classes:
-- [ ] Actually start implementing classes.
+- [ ] Create Python class instances using JavaScript.
+- [ ] Convert Python class instances to JavaScript objects.
+- [ ] Create new Python classes using JavaScript.
+    - [ ] Expand Python classes using JavaScript.
 
 # How can I use it?
 Initialize the library:

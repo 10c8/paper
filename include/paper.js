@@ -28,8 +28,9 @@ function PyCall(owner, name) {
             'args': args
         });
 
-        if ('error' in result) {
-            console.error(result.error);
+        if ('exception' in result) {
+            console.error('[Paper] '+ result.exception)
+            console.warn(result.traceback);
             return null;
         }
 
