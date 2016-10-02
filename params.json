@@ -1,0 +1,6 @@
+{
+  "name": "Paper",
+  "tagline": "Develop applications for Pythonista using web tools.",
+  "body": "Paper is a library that allows Pythonista users to develop aplications using HTML, CSS and JavaScript.\r\n\r\n# How can I use it?\r\nInitialize the library:\r\n```python\r\nimport paper\r\n\r\n# Initialize Paper\r\napp = paper.app('./app')\r\n\r\n# Expose the function 'hello' to the JS API\r\n@app.expose\r\ndef hello():\r\n    return 'Oh, hi!'\r\n\r\n# Run your app\r\napp.run()\r\n```\r\n\r\nMake your app (inside “app” folder):\r\n```html\r\n<!DOCTYPE html>\r\n<html>\r\n<head>\r\n    <title>Paper</title>\r\n\r\n    <!-- Paper API -->\r\n    <script src=\"./jquery.min.js\"></script>\r\n    <script src=“./paper.js”></script>\r\n</head>\r\n<body>\r\n    <h1>Hello, Paper!</h1>\r\n    <button onclick=“sayHello()”>Hello!</button>\r\n\r\n    <script>\r\n    function sayHello() {\r\n        response = paper.py.hello();\r\n        alert(response);\r\n    }\r\n    </script>\r\n</body>\r\n</html>\r\n```\r\n\r\n_Voilá._\r\n\r\n# How does it work?\r\n### 1. The server:\r\n…\r\n\r\n### 2. The JS API:\r\n…\r\n\r\n## Contribute\r\nSuggestions, as well as pull requests and bug reports are welcome.",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}

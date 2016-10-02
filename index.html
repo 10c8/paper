@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Paper by teamnoire</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <meta name="viewport" content="width=device-width">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Paper</h1>
+        <p>Develop applications for Pythonista using web tools.</p>
+
+        <p class="view"><a href="https://github.com/teamnoire/paper">View the Project on GitHub <small>teamnoire/paper</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/teamnoire/paper/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/teamnoire/paper/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/teamnoire/paper">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <p>Paper is a library that allows Pythonista users to develop aplications using HTML, CSS and JavaScript.</p>
+
+<h1>
+<a id="how-can-i-use-it" class="anchor" href="#how-can-i-use-it" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>How can I use it?</h1>
+
+<p>Initialize the library:</p>
+
+<div class="highlight highlight-source-python"><pre><span class="pl-k">import</span> paper
+
+<span class="pl-c"># Initialize Paper</span>
+app <span class="pl-k">=</span> paper.app(<span class="pl-s"><span class="pl-pds">'</span>./app<span class="pl-pds">'</span></span>)
+
+<span class="pl-c"># Expose the function 'hello' to the JS API</span>
+<span class="pl-en">@app.expose</span>
+<span class="pl-k">def</span> <span class="pl-en">hello</span>():
+    <span class="pl-k">return</span> <span class="pl-s"><span class="pl-pds">'</span>Oh, hi!<span class="pl-pds">'</span></span>
+
+<span class="pl-c"># Run your app</span>
+app.run()</pre></div>
+
+<p>Make your app (inside “app” folder):</p>
+
+<div class="highlight highlight-text-html-basic"><pre>&lt;!DOCTYPE html&gt;
+&lt;<span class="pl-ent">html</span>&gt;
+&lt;<span class="pl-ent">head</span>&gt;
+    &lt;<span class="pl-ent">title</span>&gt;Paper&lt;/<span class="pl-ent">title</span>&gt;
+
+    <span class="pl-c">&lt;!-- Paper API --&gt;</span>
+<span class="pl-s1">    &lt;<span class="pl-ent">script</span> <span class="pl-e">src</span>=<span class="pl-s"><span class="pl-pds">"</span>./jquery.min.js<span class="pl-pds">"</span></span>&gt;&lt;/<span class="pl-ent">script</span>&gt;</span>
+<span class="pl-s1">    &lt;<span class="pl-ent">script</span> <span class="pl-e">src</span>=<span class="pl-s">“./paper.js”</span>&gt;&lt;/<span class="pl-ent">script</span>&gt;</span>
+&lt;/<span class="pl-ent">head</span>&gt;
+&lt;<span class="pl-ent">body</span>&gt;
+    &lt;<span class="pl-ent">h1</span>&gt;Hello, Paper!&lt;/<span class="pl-ent">h1</span>&gt;
+    &lt;<span class="pl-ent">button</span> <span class="pl-e">onclick</span>=<span class="pl-s">“sayHello()”</span>&gt;Hello!&lt;/<span class="pl-ent">button</span>&gt;
+
+<span class="pl-s1">    &lt;<span class="pl-ent">script</span>&gt;</span>
+<span class="pl-s1">    <span class="pl-k">function</span> <span class="pl-en">sayHello</span>() {</span>
+<span class="pl-s1">        response <span class="pl-k">=</span> <span class="pl-smi">paper</span>.<span class="pl-smi">py</span>.<span class="pl-en">hello</span>();</span>
+<span class="pl-s1">        <span class="pl-en">alert</span>(response);</span>
+<span class="pl-s1">    }</span>
+<span class="pl-s1">    &lt;/<span class="pl-ent">script</span>&gt;</span>
+&lt;/<span class="pl-ent">body</span>&gt;
+&lt;/<span class="pl-ent">html</span>&gt;</pre></div>
+
+<p><em>Voilá.</em></p>
+
+<h1>
+<a id="how-does-it-work" class="anchor" href="#how-does-it-work" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>How does it work?</h1>
+
+<h3>
+<a id="1-the-server" class="anchor" href="#1-the-server" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>1. The server:</h3>
+
+<p>…</p>
+
+<h3>
+<a id="2-the-js-api" class="anchor" href="#2-the-js-api" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>2. The JS API:</h3>
+
+<p>…</p>
+
+<h2>
+<a id="contribute" class="anchor" href="#contribute" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Contribute</h2>
+
+<p>Suggestions, as well as pull requests and bug reports are welcome.</p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/teamnoire">teamnoire</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
