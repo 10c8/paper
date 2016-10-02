@@ -44,7 +44,7 @@ class PaperApp(object):
     _allowed_builtins = [
         '__import__', 'abs', 'all', 'any', 'bin', 'bytearray', 'bytes',
         'callable', 'chr', 'cmp', 'coerce', 'enumerate', 'execfile', 'filter',
-        'format', 'hash', 'hex', 'id', 'range', 'tuple'
+        'format', 'hash', 'hex', 'id', 'print', 'range', 'tuple'
     ]
     # Objects created by JavaScript
     _py_objs = {
@@ -157,8 +157,8 @@ class PaperApp(object):
                         result = {
                             'exception': '<type \'exceptions.PaperError\'>',
                             'traceback': 'Traceback (most recent call last):\n'
-                                       'PaperError: Unknown PyObj "{}".'\
-                                       .format(obj_id)
+                                         'PaperError: Unknown PyObj "{}".'\
+                                         .format(obj_id)
                         }
                 elif builtin == 'import':
                     module = request.json['module']
