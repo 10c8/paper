@@ -40,6 +40,12 @@ class PaperApp(object):
     _ignored_imports = [
         '__name__', '__doc__', '__file__', '__package__', '__builtins__'
     ]
+    # Built-in names that should be available at the JS API
+    _allowed_builtins = [
+        '__import__', 'abs', 'all', 'any', 'bin', 'bytearray', 'bytes',
+        'callable', 'chr', 'cmp', 'coerce', 'enumerate', 'execfile', 'filter',
+        'format', 'hash', 'hex', 'id', 'range', 'tuple'
+    ]
     # Objects created by JavaScript
     _py_objs = {
         '__anon__': {}
@@ -114,7 +120,9 @@ class PaperApp(object):
             }
 
             if is_builtin:
-                if request.json['builtin'] == 'init':
+                builtin = request.json['builtin']
+
+                if builtin == 'init':
                     if py_three:
                         module = 'builtins'
                     else:
@@ -134,8 +142,25 @@ class PaperApp(object):
                         if name in self._ignored_imports:
                             continue
 
+                        if name not in self._allowed_builtins:
+                            continue
+
                         data[name] = self._js_obj(builtin_import, name)
-                elif request.json['builtin'] == 'import':
+                elif builtin == 'free':
+                    obj_id = request.json['id']
+
+                    if obj_id in self._py_objs:
+                        del self._py_objs[obj_id]
+
+                        result = {}
+                    else:
+                        result = {
+                            'exception': '<type \'exceptions.PaperError\'>',
+                            'traceback': 'Traceback (most recent call last):\n'
+                                       'PaperError: Unknown PyObj "{}".'\
+                                       .format(obj_id)
+                        }
+                elif builtin == 'import':
                     module = request.json['module']
 
                     result = {
@@ -144,6 +169,23 @@ class PaperApp(object):
 
                     try:
                         mod = __import__(module)
+                        names = dir(mod)
+
+                        # Fetch the imported names
+                        for name in names:
+                            if name in self._ignored_imports:
+                                continue
+
+                            result[name] = self._js_obj(mod, name)
+
+                        # Save the newly created object
+                        obj_name = id(mod)
+                        self._py_objs[obj_name] = mod
+
+                        result['__id__'] = obj_name
+
+                        # Return a reference to that object
+                        data = result
                     except:
                         exc_type, exc_value, exc_traceback = sys.exc_info()
                         tb = traceback.format_exc(exc_traceback)
@@ -152,24 +194,6 @@ class PaperApp(object):
                             'exception': str(exc_type),
                             'traceback': tb
                         }
-
-                    names = dir(mod)
-
-                    # Fetch the imported names
-                    for name in names:
-                        if name in self._ignored_imports:
-                            continue
-
-                        result[name] = self._js_obj(mod, name)
-
-                    # Save the newly created object
-                    obj_name = id(mod)
-                    self._py_objs[obj_name] = mod
-
-                    result['__id__'] = obj_name
-
-                    # Return a reference to that object
-                    data = result
             elif is_call:
                 c_type = request.json['type']
                 call = request.json['call']
@@ -228,6 +252,8 @@ class PaperApp(object):
                                 continue
 
                             data['value'][name] = self._js_obj(result, name)
+                except KeyboardInterrupt:
+                    sys.exit()
                 except:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
                     tb = traceback.format_exc(exc_traceback)
@@ -237,7 +263,18 @@ class PaperApp(object):
                         'traceback': tb
                     }
 
-            return json.dumps(data)
+            try:
+                return json.dumps(data)
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                tb = traceback.format_exc(exc_traceback)
+
+                data = {
+                    'exception': str(exc_type),
+                    'traceback': tb
+                }
+
+                return json.dumps(data)
 
         # Start the server
         run(host='127.0.0.1', port=1406, quiet=True)

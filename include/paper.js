@@ -177,8 +177,33 @@ Paper.import = function(name) {
         module: name
     });
 
+    if ('exception' in result) {
+        console.error('[Paper] '+ result.exception);
+        console.warn(result.traceback);
+        return false;
+    }
+
     window[name] = new PyObj(result);
+    return true;
+};
+
+/*
+Garbage collect a Python object and destroy it's JavaScript reference
+*/
+Paper.free = function(obj) {
+    if (!('__id__' in window[obj])) {
+        console.error('Invalid PyObj: '+ obj +'.');
+        return false;
+    }
+
+    _callPython({
+        builtin: 'free',
+        id: window[obj].__id__
+    });
+
+    delete window[obj];
+    return true;
 };
 
 // Add it to the global scope
-window.paper = Paper;
+window.paper = window.py = Paper;

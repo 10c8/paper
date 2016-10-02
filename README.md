@@ -6,7 +6,7 @@ Paper is a library that allows Pythonista users to develop aplications using HTM
 # Todo
 Important:
 - [x] Return exceptions to JavaScript instead of crashing the server.
-- [ ] Implement garbage collection for Python objects and references.
+- [x] Implement garbage collection for Python objects and references.
 - [ ] Improve performance when working with heavy data.
 
 Modules:
