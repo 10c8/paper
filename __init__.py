@@ -190,7 +190,7 @@ class PaperApp(object):
                         else:
                             result = getattr(self._py_objs[owner], call)(*args)
                     elif c_type == 'attr':
-                        result = getattr(self._py_obs[owner], call)
+                        result = getattr(self._py_objs[owner], call)
 
                     if type(result) in [str, int, float, list, dict, bool]:
                         data = {
