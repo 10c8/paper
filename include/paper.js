@@ -155,19 +155,15 @@ function toType(obj) {
 }
 
 // API code
-var Paper = {
-    'VERSION': '0.4',
-
-    // Types
-    'valid': ['str', 'int', 'float', 'tuple', 'list', 'dict', 'bool']
-};
-
 /*
 Import Python builtins
 */
 var Paper = new PyObj(_callPython({
     builtin: 'init'
 }));
+
+Paper.VERSION = '0.4';
+Paper.VALID   = ['str', 'int', 'float', 'tuple', 'list', 'dict', 'bool'];
 
 /*
 Import a Python module as a PyObj
