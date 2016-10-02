@@ -237,7 +237,6 @@ class PaperApp(object):
                         'traceback': tb
                     }
 
-            print(self._py_objs)
             return json.dumps(data)
 
         # Start the server
