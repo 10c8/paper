@@ -137,6 +137,9 @@ function PyTuple(data) {
 
     this.data = data;
 }
+PyTuple.prototype.get = function(index) {
+    return this.data[index];
+};
 
 function kwargs(fn) {
     return function() {
