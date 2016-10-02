@@ -21,7 +21,7 @@ Functions:
 
 Types:
 - [x] Implement `__getattr__` for JavaScript references of Python objects.
-- [x] Convert basic Python types to JavaScript equivalents (`int`, `float`, `string`, `list`, `dict`, `bool` and `tuple`).
+- [x] Convert basic Python types to JavaScript equivalents (`int`, `float`, `str`, `list`, `dict`, `bool` and `tuple`).
 - [x] Convert basic JavaScript types to Python equivalents (`string`, `number`, `array`, `boolean` and `object`).
 - [x] Create JavaScript objects from Python objects.
 - [x] Create Python objects from JavaScript objects.
