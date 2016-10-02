@@ -5,7 +5,7 @@ Paper is a library that allows Pythonista users to develop aplications using HTM
 
 # Todo
 Important:
-- [ ] Return exceptions to JavaScript instead of crashing the server.
+- [x] Return exceptions to JavaScript instead of crashing the server.
 - [ ] Implement garbage collection for Python objects and references.
 - [ ] Improve performance when working with heavy data.
 
@@ -14,16 +14,17 @@ Modules:
 - [ ] `import x.y`
 
 Functions:
-- [ ] Convert Python builtin functions to JavaScript functions.
+- [x] Convert Python builtin functions to JavaScript functions.
 - [ ] Convert a JavaScript function to a Python function.
     - [ ] Pass those functions as arguments to Python function calls.
+- [ ] Handle anonymous functions returned from Python functions correctly.
 
 Types:
 - [x] Convert basic Python types to JavaScript equivalents (`int`, `float`, `string`, `list`, `dict` and `tuple`).
-- [x] Convert basic JavaScript types to Python equivalents (`int`, `float`, `string` `array` and `object`.
+- [x] Convert basic JavaScript types to Python equivalents (`string`, `number`, `array` and `object`).
 - [x] Create JavaScript objects from Python objects.
-- [ ] Create Python objects from JavaScript objects.
-    - [ ] Pass those objects as arguments to Python function calls.
+- [x] Create Python objects from JavaScript objects.
+    - [x] Pass those objects as arguments to Python function calls.
 
 Classes:
 - [ ] Create Python class instances using JavaScript.

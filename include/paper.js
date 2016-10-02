@@ -3,7 +3,7 @@
  * Bridge between Python and JavaScript
  *
  * author 0x77
- * version 0.2
+ * version 0.3
 */
 
 // Utils
@@ -14,18 +14,45 @@ function _callPython(call) {
         dataType: 'json',
         contentType: 'application/json',
         data: JSON.stringify(call),
-        async: false
+        async: false,
+        timeout: 0
     }).responseText;
 
     return JSON.parse(result);
 }
 
 function PyCall(owner, name) {
+    /*
+    Makes a call for a Python function
+    */
+
     var call = function(args) {
+        var newArgs = [];
+        args.forEach(function(arg) {
+            var argType = toType(arg);
+            var newArg = null;
+
+            if (argType == 'object') {
+                if (arg.constructor.name == 'PyTuple') {
+                    newArg = {
+                        'type': 'tuple',
+                        'data': arg.data
+                    };
+                }
+            } else {
+                newArg = {
+                    'type': argType,
+                    'value': arg
+                };
+            }
+
+            newArgs.push(newArg);
+        });
+
         result = _callPython({
             'call': name,
             'owner': owner,
-            'args': args
+            'args': newArgs
         });
 
         if ('exception' in result) {
@@ -36,6 +63,8 @@ function PyCall(owner, name) {
 
         if (result.type == 'object')
             return new PyObj(result.value);
+        else if (result.type == 'tuple')
+            return new PyTuple(result.data);
         else
             return result.value;
     };
@@ -44,6 +73,10 @@ function PyCall(owner, name) {
 }
 
 function PyObj(data) {
+    /*
+    Creates a reference to a Python object
+    */
+
     object = {};
 
     for(var name in data) {
@@ -63,21 +96,13 @@ function PyObj(data) {
     return object;
 }
 
-function PyType(type, data) {
-    if (!(Paper.valid.indexOf(type) > -1)) {
-        console.error('[PyType] Invalid type "'+ type +'"!');
-        return null;
-    }
+function PyTuple(data) {
+    /*
+    Helper to create Python tuples
+    */
 
-    this.type = type;
     this.data = data;
 }
-PyType.prototype.toString = function() {
-    return JSON.stringify(this.data);
-};
-PyType.prototype.inspect = function() {
-    return '<PyType '+ this.type +'>';
-};
 
 function kwargs(fn) {
     return function() {
@@ -91,13 +116,30 @@ function kwargs(fn) {
     };
 }
 
+function toType(obj) {
+    return ({}).toString.call(obj).match(/\s([a-zA-Z]+)/)[1].toLowerCase();
+}
+
 // API code
 var Paper = {
-    'VERSION': '0.1',
-    'py': {},
+    'VERSION': '0.3',
 
     // Types
     'valid': ['str', 'int', 'float', 'tuple', 'list', 'dict']
+};
+
+/*
+Import Python builtins
+*/
+Paper.init = function() {
+    result = _callPython({
+        builtin: 'init'
+    });
+
+    var builtins = new PyObj(result);
+    for (var name in builtins) {
+        this[name] = builtins[name];
+    }
 };
 
 /*
@@ -112,19 +154,8 @@ Paper.import = function(name) {
     window[name] = new PyObj(result);
 };
 
-/*
-Create a Python tuple
-*/
-Paper._tuple = function(kwargs) {
-    items = [];
-    kwargs.forEach(function(item) {
-        items.push(item);
-    });
+// Initialize the library (load builtins)
+Paper.init();
 
-    _ = new PyType('tuple', {'items': items});
-    return _;
-};
-Paper.Tuple = kwargs(Paper._tuple);
-
-// Why not?
-var paper = Paper;
+// Add it to the global scope
+window.paper = Paper;

@@ -4,7 +4,7 @@
  # Develop apps for Pythonista using HTML, CSS and JavaScript
  #
  # author 0x77
- # version 0.2
+ # version 0.3
 ##
 
 # Imports
@@ -46,6 +46,36 @@ class PaperApp(object):
     def __init__(self, root):
         self._root = root
 
+    def _js_obj(self, owner, obj):
+        '''
+        Convert a Python object to a JavaScript reference
+        '''
+
+        value = getattr(owner, obj)
+
+        if type(value) in [str, int, float, list, dict]:
+            result = {
+                'type': str(type(value))[7:-2],
+                'value': value
+            }
+        elif type(value) == tuple:
+            result = {
+                'type': 'tuple',
+                'data': value
+            }
+        elif callable(value):
+            result = {
+                'type': 'function',
+                'name': obj
+            }
+        else:
+            result = {
+                'type': 'unknown',
+                'value': str(value)
+            }
+
+        return result
+
     def expose(self, function, alias=None):
         '''
         Expose a Python function to the JS API
@@ -62,7 +92,7 @@ class PaperApp(object):
 
     def run(self):
         '''
-        Start the application
+        Serves as a bridge from Python to JavaScript (and vice-versa)
         '''
 
         # Open web browser
@@ -86,7 +116,28 @@ class PaperApp(object):
             is_call = ('call' in request.json)
 
             if is_builtin:
-                if request.json['builtin'] == 'import':
+                if request.json['builtin'] == 'init':
+                    if py_three:
+                        module = 'builtins'
+                    else:
+                        module = '__builtin__'
+
+                    builtin_import = __import__(module)
+                    builtins = dir(builtin_import)
+
+                    obj_name = id(builtin_import)
+                    self._py_objects[obj_name] = builtin_import
+
+                    data = {
+                        '__id__': obj_name
+                    }
+
+                    for name in builtins:
+                        if name in self._ignored_imports:
+                            continue
+
+                        data[name] = self._js_obj(builtin_import, name)
+                elif request.json['builtin'] == 'import':
                     module = request.json['module']
 
                     result = {
@@ -101,28 +152,7 @@ class PaperApp(object):
                         if name in self._ignored_imports:
                             continue
 
-                        value = getattr(mod, name)
-
-                        if type(value) == str:
-                            result[name] = {
-                                'type': 'str',
-                                'value': value
-                            }
-                        elif type(value) == int:
-                            result[name] = {
-                                'type': 'int',
-                                'value': value
-                            }
-                        elif type(value) == float:
-                            result[name] = {
-                                'type': 'float',
-                                'value': value
-                            }
-                        elif callable(value):
-                            result[name] = {
-                                'type': 'function',
-                                'name': name
-                            }
+                        result[name] = self._js_obj(mod, name)
 
                     # Save the newly created object
                     obj_name = id(mod)
@@ -131,29 +161,30 @@ class PaperApp(object):
                     result['__id__'] = obj_name
 
                     # Return a reference to that object
-                    data = json.dumps(result)
+                    data = result
             elif is_call:
                 call = request.json['call']
                 owner = request.json['owner']
                 args = request.json['args']
 
+                for i, arg in enumerate(args):
+                    if arg['type'] in ['string', 'number', 'array', 'object']:
+                        args[i] = arg['value']
+                    elif arg['type'] == 'tuple':
+                        args[i] = tuple(arg['data'])
+
                 try:
                     result = getattr(self._py_objects[owner], call)(*args)
 
-                    if type(result) == str:
+                    if type(result) in [str, int, float, list, dict]:
                         data = {
-                            'type': 'str',
+                            'type': str(type(result))[7:-2],
                             'value': result
                         }
-                    elif type(result) == int:
+                    elif type(result) == tuple:
                         data = {
-                            'type': 'int',
-                            'value': result
-                        }
-                    elif type(result) == float:
-                        data = {
-                            'type': 'float',
-                            'value': result
+                            'type': 'tuple',
+                            'data': result
                         }
                     else:
                         data = {
@@ -171,31 +202,9 @@ class PaperApp(object):
                             if name.startswith('__'):
                                 continue
 
-                            value = getattr(result, name)
-
-                            if type(value) == str:
-                                data['value'][name] = {
-                                    'type': 'str',
-                                    'value': value
-                                }
-                            elif type(value) == int:
-                                data['value'][name] = {
-                                    'type': 'int',
-                                    'value': value
-                                }
-                            elif type(value) == float:
-                                data['value'][name] = {
-                                    'type': 'float',
-                                    'value': value
-                                }
-                            elif callable(value):
-                                data['value'][name] = {
-                                    'type': 'function',
-                                    'name': name
-                                }
+                            data['value'][name] = self._js_obj(result, name)
                 except:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
-
                     tb = traceback.format_exc(exc_traceback).split('Error: ')[1]
 
                     data = {
@@ -203,7 +212,7 @@ class PaperApp(object):
                         'traceback': 'Traceback: {}'.format(tb)
                     }
 
-            return data
+            return json.dumps(data)
 
         # Start the server
         run(host='127.0.0.1', port=1406, quiet=True)
