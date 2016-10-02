@@ -4,7 +4,7 @@
  # Develop apps for Pythonista using HTML, CSS and JavaScript
  #
  # author 0x77
- # version 0.3
+ # version 0.4
 ##
 
 # Imports
@@ -41,7 +41,9 @@ class PaperApp(object):
         '__name__', '__doc__', '__file__', '__package__', '__builtins__'
     ]
     # Objects created by JavaScript
-    _py_objects = {}
+    _py_objs = {
+        '__anon__': {}
+    }
 
     def __init__(self, root):
         self._root = root
@@ -53,25 +55,17 @@ class PaperApp(object):
 
         value = getattr(owner, obj)
 
-        if type(value) in [str, int, float, list, dict]:
+        if type(value) in [str, int, float, list, dict, tuple, bool]:
             result = {
-                'type': str(type(value))[7:-2],
-                'value': value
-            }
-        elif type(value) == tuple:
-            result = {
-                'type': 'tuple',
-                'data': value
+                'type': str(type(value))[7:-2]
             }
         elif callable(value):
             result = {
-                'type': 'function',
-                'name': obj
+                'type': 'function'
             }
         else:
             result = {
-                'type': 'unknown',
-                'value': str(value)
+                'type': 'unknown'
             }
 
         return result
@@ -115,6 +109,10 @@ class PaperApp(object):
             is_builtin = ('builtin' in request.json)
             is_call = ('call' in request.json)
 
+            data = {
+                'null': True
+            }
+
             if is_builtin:
                 if request.json['builtin'] == 'init':
                     if py_three:
@@ -126,7 +124,7 @@ class PaperApp(object):
                     builtins = dir(builtin_import)
 
                     obj_name = id(builtin_import)
-                    self._py_objects[obj_name] = builtin_import
+                    self._py_objs[obj_name] = builtin_import
 
                     data = {
                         '__id__': obj_name
@@ -144,7 +142,17 @@ class PaperApp(object):
                         '__name__': module
                     }
 
-                    mod = __import__(module)
+                    try:
+                        mod = __import__(module)
+                    except:
+                        exc_type, exc_value, exc_traceback = sys.exc_info()
+                        tb = traceback.format_exc(exc_traceback)
+
+                        data = {
+                            'exception': str(exc_type),
+                            'traceback': tb
+                        }
+
                     names = dir(mod)
 
                     # Fetch the imported names
@@ -156,27 +164,35 @@ class PaperApp(object):
 
                     # Save the newly created object
                     obj_name = id(mod)
-                    self._py_objects[obj_name] = mod
+                    self._py_objs[obj_name] = mod
 
                     result['__id__'] = obj_name
 
                     # Return a reference to that object
                     data = result
             elif is_call:
+                c_type = request.json['type']
                 call = request.json['call']
                 owner = request.json['owner']
                 args = request.json['args']
 
                 for i, arg in enumerate(args):
-                    if arg['type'] in ['string', 'number', 'array', 'object']:
+                    if arg['type'] in ['string', 'number', 'array', 'object',
+                                       'boolean']:
                         args[i] = arg['value']
                     elif arg['type'] == 'tuple':
                         args[i] = tuple(arg['data'])
 
                 try:
-                    result = getattr(self._py_objects[owner], call)(*args)
+                    if c_type == 'func':
+                        if owner == '__anon__':
+                            result = self._py_objs[owner][call](*args)
+                        else:
+                            result = getattr(self._py_objs[owner], call)(*args)
+                    elif c_type == 'attr':
+                        result = getattr(self._py_obs[owner], call)
 
-                    if type(result) in [str, int, float, list, dict]:
+                    if type(result) in [str, int, float, list, dict, bool]:
                         data = {
                             'type': str(type(result))[7:-2],
                             'value': result
@@ -186,6 +202,15 @@ class PaperApp(object):
                             'type': 'tuple',
                             'data': result
                         }
+                    elif callable(result):
+                        func_id = id(result)
+                        self._py_objs['__anon__'][func_id] = result
+
+                        data = {
+                            '__id__': '__anon__',
+                            'type': 'function',
+                            'name': func_id
+                        }
                     else:
                         data = {
                             'type': 'object',
@@ -194,7 +219,7 @@ class PaperApp(object):
 
                         # Save the newly created object
                         obj_name = id(result)
-                        self._py_objects[obj_name] = result
+                        self._py_objs[obj_name] = result
 
                         data['value']['__id__'] = obj_name
 
@@ -205,13 +230,14 @@ class PaperApp(object):
                             data['value'][name] = self._js_obj(result, name)
                 except:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
-                    tb = traceback.format_exc(exc_traceback).split('Error: ')[1]
+                    tb = traceback.format_exc(exc_traceback)
 
                     data = {
                         'exception': str(exc_type),
-                        'traceback': 'Traceback: {}'.format(tb)
+                        'traceback': tb
                     }
 
+            print(self._py_objs)
             return json.dumps(data)
 
         # Start the server

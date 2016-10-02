@@ -3,7 +3,7 @@
  * Bridge between Python and JavaScript
  *
  * author 0x77
- * version 0.3
+ * version 0.4
 */
 
 // Utils
@@ -14,57 +14,70 @@ function _callPython(call) {
         dataType: 'json',
         contentType: 'application/json',
         data: JSON.stringify(call),
-        async: false,
-        timeout: 0
+        async: false
     }).responseText;
 
     return JSON.parse(result);
 }
 
-function PyCall(owner, name) {
+function PyCall(callType, owner, name) {
     /*
     Makes a call for a Python function
     */
 
     var call = function(args) {
         var newArgs = [];
-        args.forEach(function(arg) {
-            var argType = toType(arg);
-            var newArg = null;
 
-            if (argType == 'object') {
-                if (arg.constructor.name == 'PyTuple') {
+        if (callType == 'func') {
+            args.forEach(function(arg) {
+                var argType = toType(arg);
+                var newArg = null;
+
+                if (argType == 'object') {
+                    if (arg.constructor.name == 'PyTuple') {
+                        newArg = {
+                            'type': 'tuple',
+                            'data': arg.data
+                        };
+                    } else {
+                        newArg = {
+                            'type': 'object',
+                            'value': arg
+                        };
+                    }
+                } else {
                     newArg = {
-                        'type': 'tuple',
-                        'data': arg.data
+                        'type': argType,
+                        'value': arg
                     };
                 }
-            } else {
-                newArg = {
-                    'type': argType,
-                    'value': arg
-                };
-            }
 
-            newArgs.push(newArg);
-        });
+                newArgs.push(newArg);
+            });
+        }
 
         result = _callPython({
+            'type': callType,
             'call': name,
             'owner': owner,
             'args': newArgs
         });
 
         if ('exception' in result) {
-            console.error('[Paper] '+ result.exception)
+            console.error('[Paper] '+ result.exception);
             console.warn(result.traceback);
             return null;
         }
+
+        if ('null' in result)
+            return null;
 
         if (result.type == 'object')
             return new PyObj(result.value);
         else if (result.type == 'tuple')
             return new PyTuple(result.data);
+        else if (result.type == 'function')
+            return PyCall('func', '__anon__', result.name);
         else
             return result.value;
     };
@@ -78,7 +91,6 @@ function PyObj(data) {
     */
 
     object = {};
-
     for(var name in data) {
         if (name == '__id__' || name == '__name__') {
             object[name] = data[name];
@@ -87,10 +99,32 @@ function PyObj(data) {
 
         item = data[name];
 
-        if (item.type == 'function')
-            object[name] = PyCall(data.__id__, item.name);
-        else
-            object[name] = item.value;
+        if (item.type == 'function') {
+            if (item.__id__ == '__anon__')
+                (function(obj, id, this_name) {
+                    Object.defineProperty(obj, this_name, {
+                        get: function() {
+                            return PyCall('func', '__anon__', id, this_name);
+                        }
+                    });
+                })(object, data.__id__, name);
+            else
+                (function(obj, id, this_name, call_name) {
+                    Object.defineProperty(obj, this_name, {
+                        get: function() {
+                            return PyCall('func', id, this_name, call_name);
+                        }
+                    });
+                })(object, data.__id__, name, item.name);
+        } else {
+            (function(obj, id, this_name) {
+                Object.defineProperty(obj, this_name, {
+                    get: function() {
+                        return PyCall('attr', id, this_name)();
+                    }
+                });
+            })(object, data.__id__, name);
+        }
     }
 
     return object;
@@ -122,25 +156,18 @@ function toType(obj) {
 
 // API code
 var Paper = {
-    'VERSION': '0.3',
+    'VERSION': '0.4',
 
     // Types
-    'valid': ['str', 'int', 'float', 'tuple', 'list', 'dict']
+    'valid': ['str', 'int', 'float', 'tuple', 'list', 'dict', 'bool']
 };
 
 /*
 Import Python builtins
 */
-Paper.init = function() {
-    result = _callPython({
-        builtin: 'init'
-    });
-
-    var builtins = new PyObj(result);
-    for (var name in builtins) {
-        this[name] = builtins[name];
-    }
-};
+var Paper = new PyObj(_callPython({
+    builtin: 'init'
+}));
 
 /*
 Import a Python module as a PyObj
@@ -153,9 +180,6 @@ Paper.import = function(name) {
 
     window[name] = new PyObj(result);
 };
-
-// Initialize the library (load builtins)
-Paper.init();
 
 // Add it to the global scope
 window.paper = Paper;

@@ -17,11 +17,12 @@ Functions:
 - [x] Convert Python builtin functions to JavaScript functions.
 - [ ] Convert a JavaScript function to a Python function.
     - [ ] Pass those functions as arguments to Python function calls.
-- [ ] Handle anonymous functions returned from Python functions correctly.
+- [x] Handle anonymous functions returned from Python functions correctly.
 
 Types:
-- [x] Convert basic Python types to JavaScript equivalents (`int`, `float`, `string`, `list`, `dict` and `tuple`).
-- [x] Convert basic JavaScript types to Python equivalents (`string`, `number`, `array` and `object`).
+- [x] Implement `__getattr__` for JavaScript references of Python objects.
+- [x] Convert basic Python types to JavaScript equivalents (`int`, `float`, `string`, `list`, `dict`, `bool` and `tuple`).
+- [x] Convert basic JavaScript types to Python equivalents (`string`, `number`, `array`, `boolean` and `object`).
 - [x] Create JavaScript objects from Python objects.
 - [x] Create Python objects from JavaScript objects.
     - [x] Pass those objects as arguments to Python function calls.
