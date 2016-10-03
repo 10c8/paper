@@ -8,6 +8,10 @@
 
 // Utils
 function _callPython(call) {
+    /*
+    Communicates with the Python side
+    */
+
     result = $.ajax({
         url: '/api',
         type: 'post',
@@ -36,19 +40,34 @@ function PyCall(callType, owner, name) {
                 if (argType == 'object') {
                     if (arg.constructor.name == 'PyTuple') {
                         newArg = {
-                            'type': 'tuple',
-                            'data': arg.data
+                            type: 'tuple',
+                            data: arg.data
+                        };
+                    } else if (arg.constructor.name == 'PyComplexNumber') {
+                        newArg = {
+                            type: 'complex',
+                            real: arg.real,
+                            imag: arg.imag
                         };
                     } else {
                         newArg = {
-                            'type': 'object',
-                            'value': arg
+                            type: 'object',
+                            value: arg
                         };
                     }
+                } else if (argType == 'function') {
+                    newArg = {
+                        type: 'function',
+                        scope: 'window'
+                    };
+                } else if (argType == 'null') {
+                    newArg = {
+                        type: 'none'
+                    };
                 } else {
                     newArg = {
-                        'type': argType,
-                        'value': arg
+                        type: argType,
+                        value: arg
                     };
                 }
 
@@ -57,10 +76,10 @@ function PyCall(callType, owner, name) {
         }
 
         result = _callPython({
-            'type': callType,
-            'call': name,
-            'owner': owner,
-            'args': newArgs
+            type: callType,
+            call: name,
+            owner: owner,
+            args: newArgs
         });
 
         if ('exception' in result) {
@@ -76,8 +95,12 @@ function PyCall(callType, owner, name) {
             return new PyObj(result.value);
         else if (result.type == 'tuple')
             return new PyTuple(result.data);
+        else if (result.type == 'complex')
+            return new PyComplexNumber(result.real, result.imag);
         else if (result.type == 'function')
             return PyCall('func', '__anon__', result.name);
+        else if (result.type == 'none')
+            return null;
         else
             return result.value;
     };
@@ -85,6 +108,7 @@ function PyCall(callType, owner, name) {
     return kwargs(call);
 }
 
+// Python type definitions
 function PyObj(data) {
     /*
     Creates a reference to a Python object
@@ -101,21 +125,21 @@ function PyObj(data) {
 
         if (item.type == 'function') {
             if (item.__id__ == '__anon__')
+                (function(obj, id) {
+                    Object.defineProperty(obj, {
+                        get: function() {
+                            return PyCall('func', '__anon__', id);
+                        }
+                    });
+                })(object, data.__id__);
+            else
                 (function(obj, id, this_name) {
                     Object.defineProperty(obj, this_name, {
                         get: function() {
-                            return PyCall('func', '__anon__', id, this_name);
+                            return PyCall('func', id, this_name);
                         }
                     });
                 })(object, data.__id__, name);
-            else
-                (function(obj, id, this_name, call_name) {
-                    Object.defineProperty(obj, this_name, {
-                        get: function() {
-                            return PyCall('func', id, this_name, call_name);
-                        }
-                    });
-                })(object, data.__id__, name, item.name);
         } else {
             (function(obj, id, this_name) {
                 Object.defineProperty(obj, this_name, {
@@ -141,6 +165,20 @@ PyTuple.prototype.get = function(index) {
     return this.data[index];
 };
 
+function PyComplexNumber(real, imag) {
+    /*
+    Helper to create Python complex numbers
+    */
+
+    this.real = real;
+    this.imag = imag;
+}
+PyComplexNumber.prototype.inspect = function() {
+    return ('('+ this.real +'+'+ this.imag +'j)');
+};
+PyComplexNumber.prototype.toString = PyComplexNumber.prototype.inspect;
+
+// Helper functions
 function kwargs(fn) {
     return function() {
         var args_in  = Array.prototype.slice.call(arguments);

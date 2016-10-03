@@ -14,6 +14,7 @@ import json
 import traceback
 import webbrowser
 
+from types import ModuleType
 from bottle import run, route, get, post, static_file, request
 
 
@@ -24,6 +25,15 @@ py_three = (sys.version_info > (3, 0))
 
 # Are we being run from Pythonista?
 safe_env = (sys.platform == 'ios')
+
+
+# Type utils
+class JSFunction(object):
+    def __init__(self, scope):
+        self.scope = scope
+
+    def __call__(self, *args):
+        return True
 
 
 # Library code
@@ -43,16 +53,20 @@ class PaperApp(object):
     # Built-in names that should be available at the JS API
     _allowed_builtins = [
         '__import__', 'abs', 'all', 'any', 'bin', 'bytearray', 'bytes',
-        'callable', 'chr', 'cmp', 'coerce', 'enumerate', 'execfile', 'filter',
-        'format', 'hash', 'hex', 'id', 'print', 'range', 'tuple'
+        'callable', 'chr', 'cmp', 'coerce', 'compile', 'complex', 'delattr',
+        'dict', 'dir', 'divmod', 'enumerate', 'execfile', 'filter', 'float',
+        'format', 'getattr', 'hasattr', 'hash', 'hex', 'id', 'input', 'intern',
+        'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'locals',
+        'long', 'print', 'range', 'str', 'sum', 'tuple', 'type'
     ]
     # Objects created by JavaScript
     _py_objs = {
         '__anon__': {}
     }
 
-    def __init__(self, root):
+    def __init__(self, root, all_builtins=False):
         self._root = root
+        self._all_builtins = all_builtins
 
     def _js_obj(self, owner, obj):
         '''
@@ -61,13 +75,21 @@ class PaperApp(object):
 
         value = getattr(owner, obj)
 
-        if type(value) in [str, int, float, list, dict, tuple, bool]:
+        if type(value) in [str, int, float, list, dict, tuple, bool, complex]:
             result = {
                 'type': str(type(value))[7:-2]
+            }
+        elif isinstance(value, ModuleType):
+            result = {
+                'type': 'dict'
             }
         elif callable(value):
             result = {
                 'type': 'function'
+            }
+        elif value is None:
+            result = {
+                'type': 'none'
             }
         else:
             result = {
@@ -142,8 +164,9 @@ class PaperApp(object):
                         if name in self._ignored_imports:
                             continue
 
-                        if name not in self._allowed_builtins:
-                            continue
+                        if not self._all_builtins:
+                            if name not in self._allowed_builtins:
+                                continue
 
                         data[name] = self._js_obj(builtin_import, name)
                 elif builtin == 'free':
@@ -157,7 +180,7 @@ class PaperApp(object):
                         result = {
                             'exception': '<type \'exceptions.PaperError\'>',
                             'traceback': 'Traceback (most recent call last):\n'
-                                         'PaperError: Unknown PyObj "{}".'\
+                                         'PaperError: Unknown PyObj "{}".'
                                          .format(obj_id)
                         }
                 elif builtin == 'import':
@@ -206,7 +229,12 @@ class PaperApp(object):
                         args[i] = arg['value']
                     elif arg['type'] == 'tuple':
                         args[i] = tuple(arg['data'])
-
+                    elif arg['type'] == 'complex':
+                        args[i] = complex(arg['real'], arg['imag'])
+                    elif arg['type'] == 'function':
+                        args[i] = JSFunction(arg['scope'])
+                    elif arg['type'] == 'none':
+                        args[i] = None
                 try:
                     if c_type == 'func':
                         if owner == '__anon__':
@@ -226,6 +254,12 @@ class PaperApp(object):
                             'type': 'tuple',
                             'data': result
                         }
+                    elif type(result) == complex:
+                        data = {
+                            'type': 'complex',
+                            'real': result.real,
+                            'imag': result.imag
+                        }
                     elif callable(result):
                         func_id = id(result)
                         self._py_objs['__anon__'][func_id] = result
@@ -234,6 +268,10 @@ class PaperApp(object):
                             '__id__': '__anon__',
                             'type': 'function',
                             'name': func_id
+                        }
+                    elif result is None:
+                        data = {
+                            'type': 'none'
                         }
                     else:
                         data = {
@@ -277,8 +315,11 @@ class PaperApp(object):
                 return json.dumps(data)
 
         # Start the server
-        run(host='127.0.0.1', port=1406, quiet=True)
+        try:
+            run(host='127.0.0.1', port=1406, quiet=True)
+        except KeyboardInterrupt:
+            sys.exit()
 
 
-def app(root):
-    return PaperApp(root)
+def app(root, all_builtins=False):
+    return PaperApp(root, all_builtins)
