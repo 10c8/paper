@@ -27,6 +27,44 @@ py_three = (sys.version_info > (3, 0))
 safe_env = (sys.platform == 'ios')
 
 
+# Helper functions for the JS API
+class JSUtils(object):
+    def __init(self):
+        pass
+
+    # Module
+    def asImport(self, module):
+        return __import__(module)
+
+    # Expressions
+    def cmp(self, a, b):
+        return a == b
+
+    def tcmp(self, a, b):
+        return a is b
+
+    def enum(self, obj):
+        result = []
+
+        for index, item in enumerate(obj):
+            result.append((index, item))
+
+        return result
+
+    # Math
+    def add(self, a, b):
+        return a + b
+
+    def sub(self, a, b):
+        return a - b
+
+    def div(self, a, b):
+        return a / b
+
+    def mul(self, a, b):
+        return a * b
+
+
 # Type utils
 class JSFunction(object):
     def __init__(self, scope):
@@ -52,21 +90,30 @@ class PaperApp(object):
     ]
     # Built-in names that should be available at the JS API
     _allowed_builtins = [
-        '__import__', 'abs', 'all', 'any', 'bin', 'bytearray', 'bytes',
-        'callable', 'chr', 'cmp', 'coerce', 'compile', 'complex', 'delattr',
-        'dict', 'dir', 'divmod', 'enumerate', 'execfile', 'filter', 'float',
-        'format', 'getattr', 'hasattr', 'hash', 'hex', 'id', 'input', 'intern',
-        'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'locals',
-        'long', 'print', 'range', 'str', 'sum', 'tuple', 'type'
+        'abs', 'all', 'any', 'bin', 'bytearray', 'bytes', 'callable', 'chr',
+        'cmp', 'coerce', 'compile', 'complex', 'delattr', 'dict', 'dir', 'divmod',
+        'enumerate', 'execfile', 'filter', 'float', 'format', 'getattr', 'hasattr',
+        'hash', 'hex', 'id', 'input', 'intern', 'int', 'isinstance', 'issubclass',
+        'iter', 'len', 'list', 'locals', 'long', 'print', 'range', 'str', 'sum',
+        'tuple', 'type'
     ]
     # Objects created by JavaScript
     _py_objs = {
         '__anon__': {}
     }
+    # Holder for extended types
+    _extended = {}
 
     def __init__(self, root, all_builtins=False):
         self._root = root
         self._all_builtins = all_builtins
+
+    def _extend_types(self, data):
+        '''
+        Extend the type-converter
+        '''
+
+        pass
 
     def _js_obj(self, owner, obj):
         '''
@@ -92,9 +139,14 @@ class PaperApp(object):
                 'type': 'none'
             }
         else:
-            result = {
-                'type': 'unknown'
-            }
+            if type(value) in self._extended:
+                result = {
+                    'type': str(type(value))[7:-2]
+                }
+            else:
+                result = {
+                    'type': 'unknown'
+                }
 
         return result
 
@@ -122,7 +174,7 @@ class PaperApp(object):
             webbrowser.open('http://127.0.0.1:1406/')
 
         # Serve static files (actually, just the API and jQuery)
-        @get('/<filename:re:.*\.(js)>')
+        @get('/js/<filename:re:.*\.(js)>')
         def includes(filename):
             return static_file(filename, root='./include')
 
@@ -152,12 +204,12 @@ class PaperApp(object):
 
                     builtin_import = __import__(module)
                     builtins = dir(builtin_import)
+                    builtin_id = id(builtin_import)
 
-                    obj_name = id(builtin_import)
-                    self._py_objs[obj_name] = builtin_import
+                    self._py_objs[builtin_id] = builtin_import
 
                     data = {
-                        '__id__': obj_name
+                        '__id__': builtin_id
                     }
 
                     for name in builtins:
@@ -169,6 +221,30 @@ class PaperApp(object):
                                 continue
 
                         data[name] = self._js_obj(builtin_import, name)
+                elif builtin == 'utils':
+                    util_import = JSUtils()
+                    utils = dir(util_import)
+                    util_id = id(util_import)
+
+                    self._py_objs[util_id] = util_import
+
+                    data = {
+                        '__id__': util_id
+                    }
+
+                    for name in utils:
+                        if name.startswith('_'):
+                            continue
+
+                        data[name] = self._js_obj(util_import, name)
+                elif builtin == 'extend':
+                    fields = request.json['fields']
+                    ext_type = fields['type']
+                    ext_names = fields['names']
+
+                    self._extended[ext_type] = []
+                    for field in ext_names:
+                        self._extended[ext_type].append(field)
                 elif builtin == 'free':
                     obj_id = request.json['id']
 
@@ -224,8 +300,7 @@ class PaperApp(object):
                 args = request.json['args']
 
                 for i, arg in enumerate(args):
-                    if arg['type'] in ['string', 'number', 'array', 'object',
-                                       'boolean']:
+                    if arg['type'] in ['string', 'number', 'array', 'boolean']:
                         args[i] = arg['value']
                     elif arg['type'] == 'tuple':
                         args[i] = tuple(arg['data'])
@@ -233,6 +308,11 @@ class PaperApp(object):
                         args[i] = complex(arg['real'], arg['imag'])
                     elif arg['type'] == 'function':
                         args[i] = JSFunction(arg['scope'])
+                    elif arg['type'] == 'object':
+                        if 'id' in arg:
+                            args[i] = self._py_objs[arg['id']]
+                        else:
+                            args[i] = arg['data']
                     elif arg['type'] == 'none':
                         args[i] = None
                 try:
@@ -274,8 +354,13 @@ class PaperApp(object):
                             'type': 'none'
                         }
                     else:
+                        if type in self._extended:
+                            obj_type = str(type(result))[7:-2]
+                        else:
+                            obj_type = 'object'
+
                         data = {
-                            'type': 'object',
+                            'type': obj_type,
                             'value': {}
                         }
 

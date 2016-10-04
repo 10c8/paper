@@ -3,7 +3,7 @@
  * Bridge between Python and JavaScript
  *
  * author 0x77
- * version 0.4
+ * version 0.5
 */
 
 // Utils
@@ -24,7 +24,37 @@ function _callPython(call) {
     return JSON.parse(result);
 }
 
-function PyCall(callType, owner, name) {
+function _listenRequest() {
+    /*
+    Handles call requests from the Python side
+
+    TODO: Make it work...
+    */
+
+    var socket = py.__import__('socket');
+
+    var sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1);
+
+    sock.bind(py.tuple(['127.0.0.1', 2703]));
+    sock.listen(1);
+
+    var loop = setInterval(function(){
+        accept = sock.accept();
+        conn = accept.get(0);
+
+        console.log(JSON.parse(conn.recv(1024)));
+
+        sock.close();
+
+        py.free('sock');
+        py.free('socket');
+
+        clearInterval(loop);
+    }, 1000);
+}
+
+function PyCall(callType, owner, name, listen) {
     /*
     Makes a call for a Python function
     */
@@ -52,7 +82,8 @@ function PyCall(callType, owner, name) {
                     } else {
                         newArg = {
                             type: 'object',
-                            value: arg
+                            id: arg.__id__,
+                            data: arg
                         };
                     }
                 } else if (argType == 'function') {
@@ -74,6 +105,9 @@ function PyCall(callType, owner, name) {
                 newArgs.push(newArg);
             });
         }
+
+        // if (listen)
+        //     _listenRequest();
 
         result = _callPython({
             type: callType,
@@ -98,7 +132,7 @@ function PyCall(callType, owner, name) {
         else if (result.type == 'complex')
             return new PyComplexNumber(result.real, result.imag);
         else if (result.type == 'function')
-            return PyCall('func', '__anon__', result.name);
+            return PyCall('func', '__anon__', result.name, true);
         else if (result.type == 'none')
             return null;
         else
@@ -109,12 +143,17 @@ function PyCall(callType, owner, name) {
 }
 
 // Python type definitions
+var _extended = {};
+
 function PyObj(data) {
     /*
     Creates a reference to a Python object
     */
 
-    object = {};
+    object = {
+        '_paper_type': 'PyObj'
+    };
+
     for(var name in data) {
         if (name == '__id__' || name == '__name__') {
             object[name] = data[name];
@@ -128,7 +167,7 @@ function PyObj(data) {
                 (function(obj, id) {
                     Object.defineProperty(obj, {
                         get: function() {
-                            return PyCall('func', '__anon__', id);
+                            return PyCall('func', '__anon__', id, true);
                         }
                     });
                 })(object, data.__id__);
@@ -136,7 +175,7 @@ function PyObj(data) {
                 (function(obj, id, this_name) {
                     Object.defineProperty(obj, this_name, {
                         get: function() {
-                            return PyCall('func', id, this_name);
+                            return PyCall('func', id, this_name, false);
                         }
                     });
                 })(object, data.__id__, name);
@@ -144,7 +183,7 @@ function PyObj(data) {
             (function(obj, id, this_name) {
                 Object.defineProperty(obj, this_name, {
                     get: function() {
-                        return PyCall('attr', id, this_name)();
+                        return PyCall('attr', id, this_name, false)();
                     }
                 });
             })(object, data.__id__, name);
@@ -203,8 +242,11 @@ var Paper = new PyObj(_callPython({
     builtin: 'init'
 }));
 
-Paper.VERSION = '0.4';
-Paper.VALID   = ['str', 'int', 'float', 'tuple', 'list', 'dict', 'bool'];
+var PaperUtil = new PyObj(_callPython({
+    builtin: 'utils'
+}));
+
+Paper.VERSION = '0.5';
 
 /*
 Import a Python module as a PyObj
@@ -223,6 +265,26 @@ Paper.import = function(name) {
 
     window[name] = new PyObj(result);
     return true;
+};
+
+/*
+Extend the type-conversion engine
+
+TODO: Make it work?
+*/
+Paper.extend = function(type, names) {
+    _extended[type] = kwargs(function(args) {
+        for (var i=0; i < names.length; i++)
+            this[names[i]] = args[i];
+    });
+
+    _callPython({
+        builtin: 'extend',
+        fields: {
+            'type': '<type \''+ type +'>',
+            'names': names
+        }
+    });
 };
 
 /*
@@ -245,3 +307,4 @@ Paper.free = function(obj) {
 
 // Add it to the global scope
 window.paper = window.py = Paper;
+window.paperutil = window.pyutil = PaperUtil;

@@ -59,6 +59,7 @@ Modules:
 
 Functions:
 - [x] Convert Python built-in functions to JavaScript functions.
+    - [ ] Call Python function with `kwargs`.
 - [ ] Convert a JavaScript function to a Python function.
 
 Types:
