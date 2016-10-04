@@ -1,39 +1,9 @@
 # Paper
-## Develop applications for Pythonista using web tools.
+> Develop applications for Pythonista using web tools.
 
 Paper is a library that allows Pythonista users to develop aplications using HTML, CSS and JavaScript.
 
-# Todo
-Important:
-- [x] Return exceptions to JavaScript instead of crashing the server.
-- [x] Implement garbage collection for Python objects and references.
-- [ ] Improve performance when working with heavy data.
-
-Modules:
-- [x] Import Python modules from JavaScript.
-- [ ] `import x.y`
-
-Functions:
-- [x] Convert Python builtin functions to JavaScript functions.
-- [ ] Convert a JavaScript function to a Python function.
-    - [ ] Pass those functions as arguments to Python function calls.
-- [x] Handle anonymous functions returned from Python functions correctly.
-
-Types:
-- [x] Implement `__getattr__` for JavaScript references of Python objects.
-- [x] Convert basic Python types to JavaScript equivalents (`int`, `float`, `str`, `list`, `dict`, `bool`, `complex`, and `tuple`).
-- [x] Convert basic JavaScript types to Python equivalents (`string`, `number`, `array`, `boolean` and `object`).
-- [x] Create JavaScript objects from Python objects.
-- [x] Create Python objects from JavaScript objects.
-    - [x] Pass those objects as arguments to Python function calls.
-
-Classes:
-- [x] Create Python class instances using JavaScript.
-- [x] Convert Python class instances to JavaScript objects.
-- [ ] Create new Python classes using JavaScript.
-    - [ ] Expand Python classes using JavaScript.
-
-# How can I use it?
+# Usage
 Initialize the library:
 ```python
 import paper
@@ -77,12 +47,35 @@ Make your app (inside “app” folder):
 
 _Voilá._
 
-# How does it work?
-### 1. The server:
-…
+# Features
+Important:
+- [x] Return exceptions to JavaScript instead of crashing the server.
+- [ ] Garbage collection for Python objects and references.
+- [x] Good performance when working with heavy data.
 
-### 2. The JS API:
-…
+Modules:
+- [x] Import Python modules from JavaScript.
+- [x] `import x.y`
+
+Functions:
+- [x] Convert Python built-in functions to JavaScript functions.
+- [ ] Convert a JavaScript function to a Python function.
+
+Types:
+- [x] Create JavaScript references of Python objects.
+- [x] Convert basic Python types to JavaScript equivalents (`int`, `float`, `string`, `complex`, `list`, `dict` and `tuple`).
+- [x] Convert basic JavaScript types to Python equivalents (`int`, `float`, `string` `array` and `object`.
+- [x] Create JavaScript objects from Python objects.
+- [x] Create Python objects from JavaScript objects.
+
+Classes:
+- [x] Create Python class instances using JavaScript.
+- [x] Convert Python class instances to JavaScript objects.
+- [ ] Create Python classes using JavaScript.
+    - [ ] Expand Python classes using JavaScript.
 
 ## Contribute
 Suggestions, as well as pull requests and bug reports are welcome.
+
+## License
+GPL
