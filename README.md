@@ -79,4 +79,4 @@ Classes:
 Suggestions, as well as pull requests and bug reports are welcome.
 
 ## License
-GPL
+MIT
