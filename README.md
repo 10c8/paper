@@ -65,7 +65,7 @@ Functions:
 Types:
 - [x] Create JavaScript references of Python objects.
 - [x] Convert basic Python types to JavaScript equivalents (`int`, `float`, `string`, `complex`, `list`, `dict` and `tuple`).
-- [x] Convert basic JavaScript types to Python equivalents (`int`, `float`, `string` `array` and `object`.
+- [x] Convert basic JavaScript types to Python equivalents (`int`, `float`, `string`, `array` and `object`).
 - [x] Create JavaScript objects from Python objects.
 - [x] Create Python objects from JavaScript objects.
 
