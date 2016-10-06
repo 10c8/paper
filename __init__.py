@@ -78,10 +78,14 @@ class JSFunction(object):
         self.code = code
 
     def __call__(self, *args):
-        args = ','.join(args[0])
+        if len(args) == 0:
+            args = ''
+        else:
+            args = ','.join(args[0])
+
         call = '({})({})'.format(self.code, args)
 
-        return app._js.eval_js(call)
+        return self.app._js.eval_js(call)
 
 
 # Library code
@@ -455,7 +459,7 @@ class PaperApp(object):
             # Start WebView
             def webview():
                 self._js = ui.WebView()
-                self._js.load_url('127.0.0.1:1406')
+                self._js.load_url('http://127.0.0.1:1406')
                 self._js.present('panel')
 
             ui.in_background(webview())
