@@ -215,7 +215,7 @@ class PaperApp(object):
         # Serve the app
         @get('/')
         def index():
-            return static_file('index.html', root='./app')
+            return static_file('index.html', root=self._root)
 
         # Handle API calls
         @post('/api')
