@@ -21,7 +21,7 @@ else:
     import traceback
     import threading
 
-    # import ui
+    import ui
 
     from types import ModuleType
     from bottle import run, route, get, post, static_file, request
@@ -453,7 +453,7 @@ class PaperApp(object):
             server.start()
 
             # Start WebView
-            def webview()
+            def webview():
                 self._js = ui.WebView()
                 self._js.load_url('127.0.0.1:1406')
                 self._js.present('panel')
