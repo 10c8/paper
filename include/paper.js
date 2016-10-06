@@ -71,7 +71,7 @@ function PyCall(callType, owner, name, listen) {
                     if (arg.constructor.name == 'PyTuple') {
                         newArg = {
                             type: 'tuple',
-                            data: arg.data
+                            value: arg.data
                         };
                     } else if (arg.constructor.name == 'PyComplexNumber') {
                         newArg = {
@@ -83,13 +83,13 @@ function PyCall(callType, owner, name, listen) {
                         newArg = {
                             type: 'object',
                             id: arg.__id__,
-                            data: arg
+                            value: arg
                         };
                     }
                 } else if (argType == 'function') {
                     newArg = {
                         type: 'function',
-                        scope: 'window'
+                        code: arg.toString()
                     };
                 } else if (argType == 'null') {
                     newArg = {
@@ -125,10 +125,10 @@ function PyCall(callType, owner, name, listen) {
         if ('null' in result)
             return null;
 
-        if (result.type == 'object')
+        if (result.type == 'object' || result.type == 'list')
             return new PyObj(result.value);
         else if (result.type == 'tuple')
-            return new PyTuple(result.data);
+            return new PyTuple(result.value);
         else if (result.type == 'complex')
             return new PyComplexNumber(result.real, result.imag);
         else if (result.type == 'function')
@@ -179,6 +179,14 @@ function PyObj(data) {
                         }
                     });
                 })(object, data.__id__, name);
+        // } else if (item.type == 'reference') {
+        //     (function(obj, id, this_name) {
+        //         Object.defineProperty(obj, this_name, {
+        //             get: function() {
+        //                 return PyCall('attr', id, '__self__', false)();
+        //             }
+        //         });
+        //     })(object, item.__id__, name);
         } else {
             (function(obj, id, this_name) {
                 Object.defineProperty(obj, this_name, {

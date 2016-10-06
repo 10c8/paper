@@ -7,24 +7,30 @@
  # version 0.4
 ##
 
-# Imports
-import os
-import sys
-import json
-import traceback
-import webbrowser
 
-from types import ModuleType
-from bottle import run, route, get, post, static_file, request
+# Imports
+import sys
+
+# Are we being run from Pythonista?
+if not sys.platform == 'ios':
+    print('Paper only runs on Pythonista.')
+    sys.exit()
+else:
+    import os
+    import json
+    import traceback
+    import threading
+
+    # import ui
+
+    from types import ModuleType
+    from bottle import run, route, get, post, static_file, request
 
 
 __all__ = ['app']
 
 # Is this Python 2 or 3?
 py_three = (sys.version_info > (3, 0))
-
-# Are we being run from Pythonista?
-safe_env = (sys.platform == 'ios')
 
 
 # Helper functions for the JS API
@@ -67,11 +73,15 @@ class JSUtils(object):
 
 # Type utils
 class JSFunction(object):
-    def __init__(self, scope):
-        self.scope = scope
+    def __init__(self, app, code):
+        self.app = app
+        self.code = code
 
     def __call__(self, *args):
-        return True
+        args = ','.join(args[0])
+        call = '({})({})'.format(self.code, args)
+
+        return app._js.eval_js(call)
 
 
 # Library code
@@ -82,6 +92,8 @@ class PaperApp(object):
 
     # Application root directory
     _root = None
+    # JavaScript WebView
+    _js = None
     # Functions exposed to the JS API
     _exposed = {}
     # Names ignored on imports
@@ -115,16 +127,21 @@ class PaperApp(object):
 
         pass
 
-    def _js_obj(self, owner, obj):
+    def _js_obj(self, owner, obj=None, index=None, it=False):
         '''
         Convert a Python object to a JavaScript reference
         '''
 
-        value = getattr(owner, obj)
+        if index is not None:
+            value = owner[index]
+        elif it is not None:
+            value = owner
+        else:
+            value = getattr(owner, obj)
 
-        if type(value) in [str, int, float, list, dict, tuple, bool, complex]:
+        if type(value) in [str, int, float, dict, tuple, bool, complex]:
             result = {
-                'type': str(type(value))[7:-2]
+                'type': type(value).__name__
             }
         elif isinstance(value, ModuleType):
             result = {
@@ -139,9 +156,20 @@ class PaperApp(object):
                 'type': 'none'
             }
         else:
+            if index is not None or it is not None:
+                print(type(value).__name__)
+
+                obj_id = id(value)
+                self._py_objs[obj_id] = value
+
+                result = {
+                    'type': 'reference',
+                    '__id__': obj_id
+                }
+
             if type(value) in self._extended:
                 result = {
-                    'type': str(type(value))[7:-2]
+                    'type': type(value).__name__
                 }
             else:
                 result = {
@@ -149,6 +177,16 @@ class PaperApp(object):
                 }
 
         return result
+
+    def _js_obj_loop(self, obj):
+        if type(obj) == list:
+            for i in range(len(obj)):
+                obj[i] = self._js_obj(obj, index=i)
+        # elif type(obj) == dict:
+        #     obj = self._js_obj()
+
+            print(obj)
+        return obj
 
     def expose(self, function, alias=None):
         '''
@@ -168,10 +206,6 @@ class PaperApp(object):
         '''
         Serves as a bridge from Python to JavaScript (and vice-versa)
         '''
-
-        # Open web browser
-        if safe_env:
-            webbrowser.open('http://127.0.0.1:1406/')
 
         # Serve static files (actually, just the API and jQuery)
         @get('/js/<filename:re:.*\.(js)>')
@@ -294,6 +328,9 @@ class PaperApp(object):
                             'traceback': tb
                         }
             elif is_call:
+                if 'owner' not in request.json:
+                    print(request.json)
+
                 c_type = request.json['type']
                 call = request.json['call']
                 owner = request.json['owner']
@@ -307,7 +344,7 @@ class PaperApp(object):
                     elif arg['type'] == 'complex':
                         args[i] = complex(arg['real'], arg['imag'])
                     elif arg['type'] == 'function':
-                        args[i] = JSFunction(arg['scope'])
+                        args[i] = JSFunction(self, arg['code'])
                     elif arg['type'] == 'object':
                         if 'id' in arg:
                             args[i] = self._py_objs[arg['id']]
@@ -322,17 +359,21 @@ class PaperApp(object):
                         else:
                             result = getattr(self._py_objs[owner], call)(*args)
                     elif c_type == 'attr':
-                        result = getattr(self._py_objs[owner], call)
+                        if call == '__self__':
+                            result = self._py_objs[owner]
+                            print(result)
+                        else:
+                            result = getattr(self._py_objs[owner], call)
 
                     if type(result) in [str, int, float, list, dict, bool]:
                         data = {
-                            'type': str(type(result))[7:-2],
+                            'type': type(result).__name__,
                             'value': result
                         }
                     elif type(result) == tuple:
                         data = {
                             'type': 'tuple',
-                            'data': result
+                            'value': result
                         }
                     elif type(result) == complex:
                         data = {
@@ -355,7 +396,7 @@ class PaperApp(object):
                         }
                     else:
                         if type in self._extended:
-                            obj_type = str(type(result))[7:-2]
+                            obj_type = type(result).__name__
                         else:
                             obj_type = 'object'
 
@@ -387,6 +428,10 @@ class PaperApp(object):
                     }
 
             try:
+                if 'value' in data:
+                    if type(data['value']) in [list, dict, tuple]:
+                        return json.dumps(data, default=self._js_obj_loop(data['value']))
+
                 return json.dumps(data)
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -401,7 +446,21 @@ class PaperApp(object):
 
         # Start the server
         try:
-            run(host='127.0.0.1', port=1406, quiet=True)
+            # Start server
+            server = threading.Thread(target=run, kwargs={'host': '127.0.0.1',
+                                                          'port': 1406,
+                                                          'quiet': True})
+            server.start()
+
+            # Start WebView
+            def webview()
+                self._js = ui.WebView()
+                self._js.load_url('127.0.0.1:1406')
+                self._js.present('panel')
+
+            ui.in_background(webview())
+
+            # run(host='127.0.0.1', port=1406, quiet=True)
         except KeyboardInterrupt:
             sys.exit()
 
