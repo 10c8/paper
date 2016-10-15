@@ -7,7 +7,6 @@
  # version 0.4
 ##
 
-
 # Imports
 import sys
 
@@ -24,7 +23,7 @@ else:
     import ui
 
     from types import ModuleType
-    from bottle import run, route, get, post, static_file, request
+    from bottle import run, route, get, post, static_file, request, redirect
 
 
 __all__ = ['app']
@@ -35,7 +34,7 @@ py_three = (sys.version_info > (3, 0))
 
 # Helper functions for the JS API
 class JSUtils(object):
-    def __init(self):
+    def __init__(self):
         pass
 
     # Module
@@ -73,6 +72,8 @@ class JSUtils(object):
 
 # Type utils
 class JSFunction(object):
+    """Python representation of a JavaScript function"""
+
     def __init__(self, app, code):
         self.app = app
         self.code = code
@@ -88,11 +89,135 @@ class JSFunction(object):
         return self.app._js.eval_js(call)
 
 
+def do(self, req):
+    if 'owner' not in req:
+        print(req)
+
+    c_type = req['type']
+    call = req['call']
+    owner = req['owner']
+    args = req['args']
+
+    for i, arg in enumerate(args):
+        if arg['type'] in ['string', 'number', 'array', 'boolean']:
+            args[i] = arg['value']
+        elif arg['type'] == 'tuple':
+            args[i] = tuple(arg['data'])
+        elif arg['type'] == 'complex':
+            args[i] = complex(arg['real'], arg['imag'])
+        elif arg['type'] == 'function':
+            args[i] = JSFunction(self, arg['code'])
+        elif arg['type'] == 'object':
+            if 'id' in arg:
+                args[i] = self._py_objs[arg['id']]
+            else:
+                args[i] = arg['data']
+        elif arg['type'] == 'none':
+            args[i] = None
+    try:
+        if c_type == 'func':
+            if owner == '__anon__':
+                result = self._py_objs[owner][call](*args)
+            else:
+                result = getattr(self._py_objs[owner], call)(*args)
+        elif c_type == 'attr':
+            if call == '__self__':
+                result = self._py_objs[owner]
+                print(result)
+            else:
+                result = getattr(self._py_objs[owner], call)
+
+        if type(result) in [str, int, float, list, dict, bool]:
+            data = {
+                'type': type(result).__name__,
+                'value': result
+            }
+        elif type(result) == tuple:
+            data = {
+                'type': 'tuple',
+                'value': result
+            }
+        elif type(result) == complex:
+            data = {
+                'type': 'complex',
+                'real': result.real,
+                'imag': result.imag
+            }
+        elif callable(result):
+            func_id = id(result)
+            self._py_objs['__anon__'][func_id] = result
+
+            data = {
+                '__id__': '__anon__',
+                'type': 'function',
+                'name': func_id
+            }
+        elif result is None:
+            data = {
+                'type': 'none'
+            }
+        else:
+            if type in self._extended:
+                obj_type = type(result).__name__
+            else:
+                obj_type = 'object'
+
+            data = {
+                'type': obj_type,
+                'value': {}
+            }
+
+            # Save the newly created object
+            obj_name = id(result)
+            self._py_objs[obj_name] = result
+
+            data['value']['__id__'] = obj_name
+
+            for name in dir(result):
+                if name.startswith('__'):
+                    continue
+
+                data['value'][name] = self._js_obj(result, name)
+    except KeyboardInterrupt:
+        sys.exit()
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        tb = traceback.format_exc(exc_traceback)
+
+        data = {
+            'exception': str(exc_type),
+            'traceback': tb
+        }
+
+    try:
+        if 'value' in data:
+            if type(data['value']) in [list, dict, tuple]:
+                self._result = json.dumps(
+                    data,
+                    default=self._js_obj_loop(data['value'])
+                )
+        else:
+            self._result = json.dumps(data)
+
+        self._js.eval_js('window._paper_done = true;')
+        # return json.dumps(data)
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        tb = traceback.format_exc(exc_traceback)
+
+        data = {
+            'exception': str(exc_type),
+            'traceback': tb
+        }
+
+        self._js.eval_js('window._paper_done = true;')
+        self._result = json.dumps(data)
+        # return json.dumps(data)
+
+
 # Library code
 class PaperApp(object):
-    '''
-    Where all the magic happens
-    '''
+    """Where all the magic happens"""
 
     # Application root directory
     _root = None
@@ -107,11 +232,11 @@ class PaperApp(object):
     # Built-in names that should be available at the JS API
     _allowed_builtins = [
         'abs', 'all', 'any', 'bin', 'bytearray', 'bytes', 'callable', 'chr',
-        'cmp', 'coerce', 'compile', 'complex', 'delattr', 'dict', 'dir', 'divmod',
-        'enumerate', 'execfile', 'filter', 'float', 'format', 'getattr', 'hasattr',
-        'hash', 'hex', 'id', 'input', 'intern', 'int', 'isinstance', 'issubclass',
-        'iter', 'len', 'list', 'locals', 'long', 'print', 'range', 'str', 'sum',
-        'tuple', 'type'
+        'cmp', 'coerce', 'compile', 'complex', 'delattr', 'dict', 'dir',
+        'divmod', 'enumerate', 'execfile', 'filter', 'float', 'format',
+        'getattr', 'hasattr', 'hash', 'hex', 'id', 'input', 'intern', 'int',
+        'isinstance', 'issubclass', 'iter', 'len', 'list', 'locals', 'long',
+        'print', 'range', 'str', 'sum', 'tuple', 'type'
     ]
     # Objects created by JavaScript
     _py_objs = {
@@ -120,21 +245,19 @@ class PaperApp(object):
     # Holder for extended types
     _extended = {}
 
+    _result = {}
+
     def __init__(self, root, all_builtins=False):
         self._root = root
         self._all_builtins = all_builtins
 
     def _extend_types(self, data):
-        '''
-        Extend the type-converter
-        '''
+        """Extend the type-converter"""
 
         pass
 
     def _js_obj(self, owner, obj=None, index=None, it=False):
-        '''
-        Convert a Python object to a JavaScript reference
-        '''
+        """Convert a Python object to a JavaScript reference"""
 
         if index is not None:
             value = owner[index]
@@ -161,7 +284,7 @@ class PaperApp(object):
             }
         else:
             if index is not None or it is not None:
-                print(type(value).__name__)
+                # print(type(value).__name__)
 
                 obj_id = id(value)
                 self._py_objs[obj_id] = value
@@ -189,13 +312,11 @@ class PaperApp(object):
         # elif type(obj) == dict:
         #     obj = self._js_obj()
 
-            print(obj)
+            # print(obj)
         return obj
 
     def expose(self, function, alias=None):
-        '''
-        Expose a Python function to the JS API
-        '''
+        """Expose a Python function to the JS API"""
 
         if py_three:
             f_alias = alias or function.__name__
@@ -207,9 +328,7 @@ class PaperApp(object):
         return function
 
     def run(self):
-        '''
-        Serves as a bridge from Python to JavaScript (and vice-versa)
-        '''
+        """Serves as a bridge from Python to JavaScript (and vice-versa)"""
 
         # Serve static files (actually, just the API and jQuery)
         @get('/js/<filename:re:.*\.(js)>')
@@ -222,6 +341,14 @@ class PaperApp(object):
             return static_file('index.html', root=self._root)
 
         # Handle API calls
+        @route('/ok')
+        def ok():
+            return 'ok'
+
+        @post('/result')
+        def result():
+            return self._result
+
         @post('/api')
         def api():
             is_builtin = ('builtin' in request.json)
@@ -259,6 +386,8 @@ class PaperApp(object):
                                 continue
 
                         data[name] = self._js_obj(builtin_import, name)
+
+                    return json.dumps(data)
                 elif builtin == 'utils':
                     util_import = JSUtils()
                     utils = dir(util_import)
@@ -275,6 +404,8 @@ class PaperApp(object):
                             continue
 
                         data[name] = self._js_obj(util_import, name)
+
+                    return json.dumps(data)
                 elif builtin == 'extend':
                     fields = request.json['fields']
                     ext_type = fields['type']
@@ -323,6 +454,7 @@ class PaperApp(object):
 
                         # Return a reference to that object
                         data = result
+                        return json.dumps(data)
                     except:
                         exc_type, exc_value, exc_traceback = sys.exc_info()
                         tb = traceback.format_exc(exc_traceback)
@@ -331,122 +463,11 @@ class PaperApp(object):
                             'exception': str(exc_type),
                             'traceback': tb
                         }
+
+                        return json.dumps(data)
             elif is_call:
-                if 'owner' not in request.json:
-                    print(request.json)
-
-                c_type = request.json['type']
-                call = request.json['call']
-                owner = request.json['owner']
-                args = request.json['args']
-
-                for i, arg in enumerate(args):
-                    if arg['type'] in ['string', 'number', 'array', 'boolean']:
-                        args[i] = arg['value']
-                    elif arg['type'] == 'tuple':
-                        args[i] = tuple(arg['data'])
-                    elif arg['type'] == 'complex':
-                        args[i] = complex(arg['real'], arg['imag'])
-                    elif arg['type'] == 'function':
-                        args[i] = JSFunction(self, arg['code'])
-                    elif arg['type'] == 'object':
-                        if 'id' in arg:
-                            args[i] = self._py_objs[arg['id']]
-                        else:
-                            args[i] = arg['data']
-                    elif arg['type'] == 'none':
-                        args[i] = None
-                try:
-                    if c_type == 'func':
-                        if owner == '__anon__':
-                            result = self._py_objs[owner][call](*args)
-                        else:
-                            result = getattr(self._py_objs[owner], call)(*args)
-                    elif c_type == 'attr':
-                        if call == '__self__':
-                            result = self._py_objs[owner]
-                            print(result)
-                        else:
-                            result = getattr(self._py_objs[owner], call)
-
-                    if type(result) in [str, int, float, list, dict, bool]:
-                        data = {
-                            'type': type(result).__name__,
-                            'value': result
-                        }
-                    elif type(result) == tuple:
-                        data = {
-                            'type': 'tuple',
-                            'value': result
-                        }
-                    elif type(result) == complex:
-                        data = {
-                            'type': 'complex',
-                            'real': result.real,
-                            'imag': result.imag
-                        }
-                    elif callable(result):
-                        func_id = id(result)
-                        self._py_objs['__anon__'][func_id] = result
-
-                        data = {
-                            '__id__': '__anon__',
-                            'type': 'function',
-                            'name': func_id
-                        }
-                    elif result is None:
-                        data = {
-                            'type': 'none'
-                        }
-                    else:
-                        if type in self._extended:
-                            obj_type = type(result).__name__
-                        else:
-                            obj_type = 'object'
-
-                        data = {
-                            'type': obj_type,
-                            'value': {}
-                        }
-
-                        # Save the newly created object
-                        obj_name = id(result)
-                        self._py_objs[obj_name] = result
-
-                        data['value']['__id__'] = obj_name
-
-                        for name in dir(result):
-                            if name.startswith('__'):
-                                continue
-
-                            data['value'][name] = self._js_obj(result, name)
-                except KeyboardInterrupt:
-                    sys.exit()
-                except:
-                    exc_type, exc_value, exc_traceback = sys.exc_info()
-                    tb = traceback.format_exc(exc_traceback)
-
-                    data = {
-                        'exception': str(exc_type),
-                        'traceback': tb
-                    }
-
-            try:
-                if 'value' in data:
-                    if type(data['value']) in [list, dict, tuple]:
-                        return json.dumps(data, default=self._js_obj_loop(data['value']))
-
-                return json.dumps(data)
-            except:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                tb = traceback.format_exc(exc_traceback)
-
-                data = {
-                    'exception': str(exc_type),
-                    'traceback': tb
-                }
-
-                return json.dumps(data)
+                threading.Thread(target=do, args=(self, request.json)).start()
+                redirect('/ok')
 
         # Start the server
         try:

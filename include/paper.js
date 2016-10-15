@@ -21,37 +21,22 @@ function _callPython(call) {
         async: false
     }).responseText;
 
+    console.log(call, result);
+    if (result == 'ok') {
+        //while (!window._paper_done) {}
+
+        result = $.ajax({
+            url: '/result',
+            type: 'post',
+            dataType: 'json',
+            contentType: 'application/json',
+            async: false
+        }).responseText;
+
+        console.log(':'+ JSON.parse(result));
+    }
+
     return JSON.parse(result);
-}
-
-function _listenRequest() {
-    /*
-    Handles call requests from the Python side
-
-    TODO: Make it work...
-    */
-
-    var socket = py.__import__('socket');
-
-    var sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1);
-
-    sock.bind(py.tuple(['127.0.0.1', 2703]));
-    sock.listen(1);
-
-    var loop = setInterval(function(){
-        accept = sock.accept();
-        conn = accept.get(0);
-
-        console.log(JSON.parse(conn.recv(1024)));
-
-        sock.close();
-
-        py.free('sock');
-        py.free('socket');
-
-        clearInterval(loop);
-    }, 1000);
 }
 
 function PyCall(callType, owner, name, listen) {
@@ -105,9 +90,6 @@ function PyCall(callType, owner, name, listen) {
                 newArgs.push(newArg);
             });
         }
-
-        // if (listen)
-        //     _listenRequest();
 
         result = _callPython({
             type: callType,
